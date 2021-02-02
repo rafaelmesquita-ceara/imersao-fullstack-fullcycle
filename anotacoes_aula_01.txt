@@ -1,0 +1,116 @@
+Full Cycle:
+Arquitetar > Desenvolver > Testar > Deployar > Monitorar > Suporte aos microsserviços
+
+2 Pilares:
+
+1 - Opere o que você constrói
+  O desenvolvedor toma para si a responsabilidade e a garantia do que construiu
+
+2 - Ferramentas para escalar
+  É necessário dominar ferramentas que auxiliem no processo:
+    Pipelines de CI/CD
+    Docker
+    Kubernetes
+    Stacks de monitoramento
+
+Full stack developer VS Full cycle developer:
+  -> Full stack é relacionado com habilidades de desenvolvimento, o domínio de tecnologias para o desenvolvimento BACKEND e FRONTEND.
+
+  -> Full cycle developer, além de conseguir desenvolver, consegue arquitetar e entregar a aplicação funcional de forma testada deployada e monitorada. Domina ferramentas e processos, para que as aplicações sejam deployadas de forma simples e rapida diversas vezes ao dia e altamente escaláveis
+
+
+"NEM SÓ DE CRUD VIVE O DESENVOLVEDOR" - Wesley Williams
+
+///////////////////////////////////////////////////////////////////////////////////////
+
+Estudo de caso/Projeto Prático: CodePix
+
+Sobre o projeto
+  -> Solução para simular transferencias de valores entre bancos fictícios através de chaves (email, cpf).
+  -> Simularemos diversos bancos e contas bancárias que possuem uma chave Pix atribuida
+  -> Cada conta bancária poderá cadastrar suas chaves Pix
+  -> Uma conta bancária poderá realizar uma transferencia para outra conta em outro banco utilizando a chave Pix da conta de destino.
+  -> Uma transação não pode ser perdida mesmo que: 
+    -> O CodePix esteja fora do ar.
+    -> O Banco de destino esteja fora do ar.
+
+Sobre os Bancos
+  -> O banco será um microsserviço com funções limitadas a cadastro de contas e chaves Pix, bem como transferencia de valores.
+  -> Utilizaremos a mesma aplicação para simularmos diversos bancos, mudando apenas cores, nome e código.
+  -> Nest.js no backend 
+  -> Next.js no frontend 
+
+Sobre o CodePix
+  -> O microsserviço CodePix será responsável por intermediar as transferencias bancárias
+  -> Receberá a transação de transferencia
+  -> Encaminhará a transação para o banco de destino (Status: "pending")
+  -> Recebe a confirmação do banco de destino (Status: "confirmed")
+  -> Envia confirmação para o banco de origem informado quando o banco de destino processou
+  -> Recebe a confirmação do banco de origem de que ele processou (Status: "completed")
+  -> Marca a transação como completa. (Status: "completed")
+  -> O Codepix armazenará as chaves e confirmará o cadastro de chaves solicitado pelos bancos
+
+Fluxo
+  1 -> Banco de origem envia a chave Pix de destino ao CodePix
+  2 -> CodePix verifica se a chave Pix de destino enviada pelo banco de origem existe e manda a confirmação de existencia da chave
+  3 -> Banco inicia a transação
+  4 -> CodePix registra a transação
+  5 -> CodePix envia a transação para o banco de destino
+  6 -> Banco de destino retorna uma confirmação
+  7 -> CodePix muda o status da transação para "confirmed"
+  8 -> CodePix informa ao banco de origem que a transação foi confirmada pelo banco de destino
+  9 -> Banco de origem processa a transação
+  10 -> Banco de origem finaliza a transação, mudando status para "completed"
+
+Desafios
+  -> Comunicação rápida e eficiente
+  -> Criação e consulta instantanea das chaves (Síncrona)
+  -> Garantia de que nenhuma transação seja perdida, mesmo que qualquer dos 3 sistemas estejam fora do ar (Assíncrona)
+
+Tecnologias para comunicação
+  -> gRPC (Trabalha com protocolo HTTP2 (binário))
+  -> APACHE kafka (Processamento de dados)
+
+CodePix:
+  -> Atuará como um servidor gRPC (Receberá consultas e criação de chaves utilizando gRPC)
+  -> Consumir e publicar mensagens no Apache kafka
+  -> Ambas operações devem ser realizadas de forma simultanea ao executar o serviço (Quando rodarmos o programa, ele irá subir o servidor gRPC e ao mesmo tempo consumirá as mensagens do APACHE kafka)
+  -> Trabalhar com um design focado em solucionar o problema do domínio (DDD)
+  -> Deixar a complexidade técnica para "camada de aplicação", responsável pelo servidor gRPC e kafka (Camada de domínio resolve a complexidade do negócio, camada de aplicação resolve a parte do gRPC e kafka)
+  -> Flexível para implementação de API Rest, CLI Clients SEM alterar nenhum outro componente da aplicação ou o modelo de domínio
+
+Arquitetura Hexagonal / Ports and Adapters
+
+A aplicação principal que resolve os problemas da aplicação e há adaptadores em volta dela que podem se comunicar com a aplicação.
+Qualquer sistema pode se conectar na aplicação através de portas que serão disponibilizadas na aplicação
+
+Aplication:
+  -> Domain Model (Domínios, entidades)
+  -> Domain Services (Camada onde os models se comunicam)
+  -> Aplciation Services (Layers que lidam com a complexidade para fazer acesso a camada de domínio)
+
+Adapters:
+  -> User Interface
+  -> Tests
+  -> Infrastructure
+
+
+Estrutura:
+  -> application
+    -> factory  (Instancia "objetos" com muitas dependencias)
+    -> grpc (Servidor e serviços disponibilizados via gRPC)
+    -> kafka (Consumo e processamento de transações com Apache kafka)
+    -> model (Estrutura dos objetos que receberão as requisições externas (via Kafka ou gRPC (DTO)))
+    -> usecase (Executa o fluxo de operações de acordo com as regras de negócio)
+  -> cmd (Comandos registrados para iniciarmos a aplicação e seus serviços (CLI))
+  -> domain/model (Coração da aplicação e suas regras de negócio)
+  -> infrastructure
+    -> db  (Realiza a configuração do ORM e a interface com o banco de dados)
+    -> repository (Realiza a persistencia dos dados. Normalmente são chamados pelos "usecases")
+
+  
+  Recursos a serem utilizados
+    -> Docker
+    -> Golang
+    -> Apache Kafka
+    -> Postgres
